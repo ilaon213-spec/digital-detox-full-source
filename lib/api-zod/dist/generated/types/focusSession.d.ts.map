@@ -1,0 +1,1 @@
+{"version":3,"file":"focusSession.d.ts","sourceRoot":"","sources":["../../../src/generated/types/focusSession.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,MAAM,WAAW,YAAY;IAC3B,EAAE,EAAE,MAAM,CAAC;IACX,eAAe,EAAE,MAAM,CAAC;IACxB,gBAAgB,CAAC,EAAE,MAAM,CAAC;IAC1B,SAAS,CAAC,EAAE,MAAM,CAAC;IACnB,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,WAAW,EAAE,OAAO,CAAC;CACtB"}
