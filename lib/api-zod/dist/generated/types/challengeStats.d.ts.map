@@ -1,0 +1,1 @@
+{"version":3,"file":"challengeStats.d.ts","sourceRoot":"","sources":["../../../src/generated/types/challengeStats.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,QAAQ,EAAE,MAAM,YAAY,CAAC;AAE3C,MAAM,WAAW,cAAc;IAC7B,KAAK,EAAE,QAAQ,EAAE,CAAC;IAClB,WAAW,EAAE,MAAM,CAAC;IACpB,UAAU,EAAE,MAAM,CAAC;CACpB"}
