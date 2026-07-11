@@ -27,11 +27,9 @@ import {
   useDeleteBlockedApp,
   useGetServerTime,
   useGetSettings,
-  useGetTimeSlots,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { syncToNative } from "@/utils/syncNative";
 
 interface InstalledApp {
   packageName: string;
@@ -57,8 +55,6 @@ export default function BlockedAppsScreen() {
   const { mutate: updateApps, isPending } = useUpdateBlockedApps();
   const { mutate: addApp } = useAddBlockedApp();
   const { mutate: deleteApp } = useDeleteBlockedApp();
-
-  const { data: todaySlots } = useGetTimeSlots({ day: todayDow });
 
   const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
   const [vpnEnabled, setVpnEnabled] = useState(false);
@@ -121,33 +117,6 @@ export default function BlockedAppsScreen() {
       refreshStatus();
     }
   };
-
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    if (!apps || !serverTime) return;
-
-    const blockedPackages = apps
-      .filter((a) => a.blocked)
-      .map((a) => a.packageName ?? "")
-      .filter(Boolean);
-
-    const lockedIndices = (todaySlots ?? [])
-      .filter((s) => s.isLocked)
-      .map((s) => s.index);
-
-    // KST = UTC+9 기준 (기기 로컬 시간 사용 금지)
-    const kstMinutes = Math.floor((Date.now() / 60000 + 9 * 60) % (24 * 60));
-    const currentSlot = Math.floor(kstMinutes / 10);
-    const isLocked = lockedIndices.includes(currentSlot);
-
-    syncToNative({
-      lockedSlotIndices: lockedIndices,
-      blockedApps: blockedPackages,
-      isLocked,
-      dayOfWeek: todayDow,
-      lastUpdated: Date.now(),
-    });
-  }, [apps, todaySlots, serverTime, todayDow]);
 
   const topPad = isWeb ? 67 : insets.top + 16;
 

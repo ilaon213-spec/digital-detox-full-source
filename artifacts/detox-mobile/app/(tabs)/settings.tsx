@@ -26,10 +26,12 @@ type BlockStatus = {
   blockedApps: string[];
 } | null;
 
-type DeviceDaySlots = {
-  [key: string]: number[];  // dow_0 ~ dow_6, legacy_today
+type DeviceDaySlotsData = {
   legacy_dow: number;
-} | null;
+  legacy_today: number[];
+  [key: string]: number[] | number;
+};
+type DeviceDaySlots = DeviceDaySlotsData | null;
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const TOTAL_SLOTS = 144;

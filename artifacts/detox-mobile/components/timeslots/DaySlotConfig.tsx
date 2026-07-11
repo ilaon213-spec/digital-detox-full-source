@@ -34,11 +34,19 @@ interface DaySlotConfigProps {
   onDragStateChange: (enabled: boolean) => void;
 }
 
-// 이 컴포넌트는 부모(timeslots.tsx)에서 key={day}로 렌더링된다.
-// 즉, 요일 탭을 바꾸면 이전 요일의 DaySlotConfig 인스턴스는 완전히
-// 언마운트되고 새 인스턴스가 마운트된다 — 상태(lockedSlots 등)가
-// 요일 간에 절대 공유/잔류되지 않으며, useGetTimeSlots({ day })도
-// 오직 이 컴포넌트에 할당된 day 값으로만 새로 fetch 된다.
+type SlotRecord = { index: number; isLocked: boolean };
+
+function slotsToBoolean(records: SlotRecord[]): boolean[] {
+  const arr = Array(TOTAL_SLOTS).fill(false) as boolean[];
+  for (const s of records) {
+    if (s.index >= 0 && s.index < TOTAL_SLOTS) arr[s.index] = s.isLocked;
+  }
+  return arr;
+}
+
+// This component is rendered with key={day} in timeslots.tsx.
+// Every day change fully unmounts the previous instance and mounts a fresh one,
+// so all refs and state are day-isolated by construction.
 export default function DaySlotConfig({
   day,
   todayDow,
@@ -50,29 +58,28 @@ export default function DaySlotConfig({
 }: DaySlotConfigProps) {
   const queryClient = useQueryClient();
 
-  const { data: slots, isLoading, isError: isSlotsError, refetch: refetchSlots } = useGetTimeSlots(
-    { day },
-    { query: { staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false } }
-  );
-  const { mutate: updateSlots, isPending } = useUpdateTimeSlots();
-
+  // Seed from cache so the grid renders immediately before the network response
+  // arrives. The cache key is day-specific, so this never leaks across days.
   const [lockedSlots, setLockedSlots] = React.useState<boolean[]>(() => {
-    const cached = queryClient.getQueryData<{ index: number; isLocked: boolean }[]>(
+    const cached = queryClient.getQueryData<SlotRecord[]>(
       getGetTimeSlotsQueryKey({ day })
     );
-    const arr = Array(TOTAL_SLOTS).fill(false) as boolean[];
-    if (cached && cached.length > 0) {
-      cached.forEach((s) => {
-        if (s.index < TOTAL_SLOTS) arr[s.index] = s.isLocked;
-      });
-    }
-    return arr;
+    return cached && cached.length > 0 ? slotsToBoolean(cached) : Array(TOTAL_SLOTS).fill(false);
   });
+
+  // True while the user has made drag-edits that haven't been saved yet.
+  // Prevents the server-data effect from wiping unsaved paint strokes.
+  const hasUnsavedChanges = React.useRef(false);
+
+  const { data: slots, isLoading, isError: isSlotsError, refetch: refetchSlots } = useGetTimeSlots(
+    { day },
+    { query: { staleTime: 60_000, refetchOnWindowFocus: false } as any }
+  );
+  const { mutate: updateSlots, isPending } = useUpdateTimeSlots();
 
   const lockedSlotsRef = React.useRef(lockedSlots);
   const canEditRef = React.useRef(canEdit);
   const isDraggingRef = React.useRef(false);
-  const hasUnsavedChanges = React.useRef(false);
   const dragValueRef = React.useRef(false);
   const gridContainerRef = React.useRef<View>(null);
   const gridPageXRef = React.useRef(0);
@@ -86,14 +93,11 @@ export default function DaySlotConfig({
     canEditRef.current = canEdit;
   }, [canEdit]);
 
-  // 서버 데이터 로드 시: 미저장 변경사항 있으면 덮어쓰기 금지
+  // Apply server data once it arrives — but don't overwrite unsaved drag edits.
   React.useEffect(() => {
     if (hasUnsavedChanges.current) return;
     if (slots && slots.length > 0) {
-      const arr = Array(TOTAL_SLOTS).fill(false) as boolean[];
-      slots.forEach((s) => {
-        if (s.index < TOTAL_SLOTS) arr[s.index] = s.isLocked;
-      });
+      const arr = slotsToBoolean(slots as SlotRecord[]);
       setLockedSlots(arr);
     }
   }, [slots]);
@@ -199,23 +203,37 @@ export default function DaySlotConfig({
     updateSlots(
       { data: { day, slots: payload } },
       {
-        onSuccess: (responseData) => {
+        onSuccess: (responseData: SlotRecord[] | unknown) => {
           hasUnsavedChanges.current = false;
-          if (Array.isArray(responseData) && responseData.length > 0) {
-            const arr = Array(TOTAL_SLOTS).fill(false) as boolean[];
-            (responseData as { index: number; isLocked: boolean }[]).forEach((s) => {
-              if (s.index < TOTAL_SLOTS) arr[s.index] = s.isLocked;
-            });
-            setLockedSlots(arr);
-            queryClient.setQueryData(getGetTimeSlotsQueryKey({ day }), responseData);
-          }
+
+          // Normalise server response into SlotRecord[] and update cache.
+          // We do NOT invalidateQueries for this day — setQueryData is the
+          // source of truth and avoids a redundant network fetch that could
+          // race with the state we just painted locally.
+          const normalized: SlotRecord[] = Array.isArray(responseData)
+            ? (responseData as SlotRecord[])
+            : payload;
+
+          queryClient.setQueryData(getGetTimeSlotsQueryKey({ day }), normalized);
+          setLockedSlots(slotsToBoolean(normalized));
+
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           Alert.alert("저장 완료", `${DAY_FULL[day]} 타임슬롯이 저장됐습니다.`);
+
+          // Invalidate settings/dashboard so their stale data refreshes,
+          // but do NOT invalidate this day's timeslots — already up-to-date.
           queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
           queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
-          // 저장된 요일(day) 전용 키(locked_slots_dow_N)에만 기록 → 다른 요일과 절대 섞이지 않음
+
           if (Platform.OS === "android") {
+            // Always persist this day's slots to the per-day SharedPreferences key.
+            // The accessibility service reads locked_slots_dow_N for each day,
+            // so every saved day must be written — not just today.
             syncDaySlots(day, lockedIndicesSnapshot);
+
+            // Also update the "current active" config (locked_slots_today,
+            // is_locked, blocked_apps) so the accessibility service can check
+            // isLocked right now — but only when the saved day is today.
             if (day === todayDow) {
               const kstMinutes = Math.floor((Date.now() / 60000 + 9 * 60) % (24 * 60));
               const currentSlot = Math.floor(kstMinutes / 10);
