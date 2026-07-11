@@ -1,0 +1,691 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: 디지털 디톡스 앱 API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: timeslots
+    description: Time slot management
+  - name: apps
+    description: Blocked apps management
+  - name: challenge
+    description: Challenge management
+  - name: settings
+    description: User settings
+  - name: stats
+    description: Usage statistics
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /server-time:
+    get:
+      operationId: getServerTime
+      tags: [settings]
+      summary: Get server time
+      description: Returns server time to prevent client-side manipulation
+      responses:
+        "200":
+          description: Server time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerTime"
+
+  /timeslots:
+    get:
+      operationId: getTimeSlots
+      tags: [timeslots]
+      summary: Get time slots for a specific day of week
+      parameters:
+        - in: query
+          name: day
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description: Day of week (0=Sun, 1=Mon, ..., 6=Sat). Defaults to today.
+      responses:
+        "200":
+          description: List of time slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimeSlot"
+    put:
+      operationId: updateTimeSlots
+      tags: [timeslots]
+      summary: Update time slots (Sunday only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTimeSlotsRequest"
+      responses:
+        "200":
+          description: Updated time slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimeSlot"
+        "403":
+          description: Not Sunday - settings locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /blocked-apps:
+    get:
+      operationId: getBlockedApps
+      tags: [apps]
+      summary: Get blocked apps list
+      responses:
+        "200":
+          description: List of apps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/App"
+    put:
+      operationId: updateBlockedApps
+      tags: [apps]
+      summary: Update blocked apps (Sunday only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBlockedAppsRequest"
+      responses:
+        "200":
+          description: Updated apps list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/App"
+        "403":
+          description: Not Sunday - settings locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /challenge:
+    get:
+      operationId: getChallenge
+      tags: [challenge]
+      summary: Get current challenge info
+      responses:
+        "200":
+          description: Challenge info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Challenge"
+    post:
+      operationId: joinChallenge
+      tags: [challenge]
+      summary: Join a challenge (Sunday only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinChallengeRequest"
+      responses:
+        "200":
+          description: Joined challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Challenge"
+        "403":
+          description: Not Sunday - settings locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /challenge/stats:
+    get:
+      operationId: getChallengeStats
+      tags: [challenge]
+      summary: Get aggregate challenge statistics per tier
+      responses:
+        "200":
+          description: Tier stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeStats"
+
+  /challenge/heartbeat:
+    post:
+      operationId: sendHeartbeat
+      tags: [challenge]
+      summary: Send heartbeat to confirm app is still installed
+      responses:
+        "200":
+          description: Heartbeat acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeartbeatResponse"
+
+  /challenge/quit:
+    post:
+      operationId: quitChallenge
+      tags: [challenge]
+      summary: Quit the active challenge
+      responses:
+        "200":
+          description: Challenge quit successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required: [ok]
+
+  /challenge/events/recent:
+    get:
+      operationId: getRecentChallengeEvents
+      tags: [challenge]
+      summary: Get recent challenge events for polling
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: ISO timestamp — return events after this time
+      responses:
+        "200":
+          description: Recent events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChallengeEvent"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [stats]
+      summary: Get dashboard data
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get user settings
+      responses:
+        "200":
+          description: User settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    put:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update user settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsRequest"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
+  /focus-timer:
+    post:
+      operationId: startFocusTimer
+      tags: [stats]
+      summary: Start a focus timer session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartFocusTimerRequest"
+      responses:
+        "200":
+          description: Focus session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FocusSession"
+    get:
+      operationId: getFocusSessions
+      tags: [stats]
+      summary: Get focus sessions history
+      responses:
+        "200":
+          description: List of focus sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FocusSession"
+
+  /focus-timer/{sessionId}/complete:
+    post:
+      operationId: completeFocusTimer
+      tags: [stats]
+      summary: Complete a focus timer session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FocusSession"
+
+  /usage-stats:
+    get:
+      operationId: getUsageStats
+      tags: [stats]
+      summary: Get screen time usage stats
+      responses:
+        "200":
+          description: Usage stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageStats"
+    post:
+      operationId: updateUsageStats
+      tags: [stats]
+      summary: Update screen time usage stats (manual input)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUsageStatsRequest"
+      responses:
+        "200":
+          description: Updated usage stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageStats"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    ServerTime:
+      type: object
+      properties:
+        timestamp:
+          type: string
+        isSunday:
+          type: boolean
+        dayOfWeek:
+          type: integer
+        daysUntilSunday:
+          type: integer
+      required: [timestamp, isSunday, dayOfWeek, daysUntilSunday]
+
+    TimeSlot:
+      type: object
+      properties:
+        index:
+          type: integer
+        time:
+          type: string
+        isLocked:
+          type: boolean
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+      required: [index, time, isLocked, dayOfWeek]
+
+    UpdateTimeSlotsRequest:
+      type: object
+      properties:
+        day:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: Day of week to update (0=Sun, 1=Mon, ..., 6=Sat)
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              isLocked:
+                type: boolean
+            required: [index, isLocked]
+      required: [day, slots]
+
+    App:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+        blocked:
+          type: boolean
+        icon:
+          type: string
+        packageName:
+          type: string
+        bundleId:
+          type: string
+        usageMinutes:
+          type: integer
+      required: [id, name, category, blocked]
+
+    UpdateBlockedAppsRequest:
+      type: object
+      properties:
+        apps:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              blocked:
+                type: boolean
+            required: [id, blocked]
+      required: [apps]
+
+    Challenge:
+      type: object
+      properties:
+        id:
+          type: integer
+        tier:
+          type: string
+          enum: [beginner, motivated, focused, hardcore]
+        tierName:
+          type: string
+        depositAmount:
+          type: integer
+        currentDay:
+          type: integer
+        totalDays:
+          type: integer
+        successDays:
+          type: integer
+        failedDays:
+          type: integer
+        totalParticipants:
+          type: integer
+        currentSurvivors:
+          type: integer
+        totalPool:
+          type: integer
+        potentialReward:
+          type: integer
+        feeRate:
+          type: number
+        maxDailyHours:
+          type: integer
+        dailyLimitHours:
+          type: integer
+        isActive:
+          type: boolean
+        startDate:
+          type: string
+        endDate:
+          type: string
+      required: [tier, tierName, depositAmount, totalDays, isActive]
+
+    JoinChallengeRequest:
+      type: object
+      properties:
+        tier:
+          type: string
+          enum: [beginner, motivated, focused, hardcore]
+        dailyLimitHours:
+          type: integer
+          minimum: 1
+          maximum: 24
+          description: 하루 최대 사용 가능 시간 (티어 상한 이하로 설정)
+      required: [tier]
+
+    TierStat:
+      type: object
+      properties:
+        tier:
+          type: string
+        total:
+          type: integer
+        active:
+          type: integer
+        completed:
+          type: integer
+      required: [tier, total, active, completed]
+
+    ChallengeStats:
+      type: object
+      properties:
+        tiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/TierStat"
+        totalActive:
+          type: integer
+        grandTotal:
+          type: integer
+      required: [tiers, totalActive, grandTotal]
+
+    HeartbeatResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        timestamp:
+          type: string
+      required: [ok, timestamp]
+
+    ChallengeEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [joined, quit, eliminated]
+        nickname:
+          type: string
+        tier:
+          type: string
+        tierName:
+          type: string
+        createdAt:
+          type: string
+      required: [id, type, nickname, tier, tierName, createdAt]
+
+    Dashboard:
+      type: object
+      properties:
+        isLocked:
+          type: boolean
+        todayDow:
+          type: integer
+          description: "Today's day of week in KST (0=Sun, 1=Mon ... 6=Sat)"
+        currentStreak:
+          type: integer
+        todayComplianceRate:
+          type: integer
+        totalDays:
+          type: integer
+        challenge:
+          $ref: "#/components/schemas/Challenge"
+        timeSlots:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSlot"
+        todayFocusMinutes:
+          type: integer
+        weeklyFocusMinutes:
+          type: array
+          items:
+            type: integer
+      required: [isLocked, todayDow, currentStreak, todayComplianceRate, totalDays, timeSlots]
+
+    Settings:
+      type: object
+      properties:
+        nickname:
+          type: string
+        notificationsEnabled:
+          type: boolean
+        lockReminderEnabled:
+          type: boolean
+        challengeAlertEnabled:
+          type: boolean
+        pushPermissionGranted:
+          type: boolean
+        deviceType:
+          type: string
+        timeslotsConfigured:
+          type: boolean
+      required: [notificationsEnabled, lockReminderEnabled, challengeAlertEnabled]
+
+    UpdateSettingsRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+        notificationsEnabled:
+          type: boolean
+        lockReminderEnabled:
+          type: boolean
+        challengeAlertEnabled:
+          type: boolean
+
+    StartFocusTimerRequest:
+      type: object
+      properties:
+        durationMinutes:
+          type: integer
+      required: [durationMinutes]
+
+    FocusSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        durationMinutes:
+          type: integer
+        completedMinutes:
+          type: integer
+        startedAt:
+          type: string
+        completedAt:
+          type: string
+        isCompleted:
+          type: boolean
+      required: [id, durationMinutes, isCompleted]
+
+    UsageStats:
+      type: object
+      properties:
+        date:
+          type: string
+        totalMinutes:
+          type: integer
+        byApp:
+          type: array
+          items:
+            type: object
+            properties:
+              appName:
+                type: string
+              minutes:
+                type: integer
+            required: [appName, minutes]
+      required: [date, totalMinutes]
+
+    UpdateUsageStatsRequest:
+      type: object
+      properties:
+        totalMinutes:
+          type: integer
+        byApp:
+          type: array
+          items:
+            type: object
+            properties:
+              appName:
+                type: string
+              minutes:
+                type: integer
+            required: [appName, minutes]
+      required: [totalMinutes]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error, message]

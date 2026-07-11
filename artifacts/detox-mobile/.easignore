@@ -1,0 +1,19 @@
+# 빌드 불필요 파일 제외 (빌드 속도 향상)
+node_modules/
+.git/
+*.log
+.DS_Store
+*.map
+coverage/
+.nyc_output/
+__tests__/
+e2e/
+*.test.ts
+*.spec.ts
+.expo/web-build/
+dist/
+
+# android/ 제외 → EAS가 항상 expo prebuild를 실행하도록 강제
+# (committed android/를 bare workflow로 쓰면 Gradle 버전 불일치 등으로 빌드 실패)
+# 주의: ../../ 로 시작하는 경로는 EAS 파서가 무시하므로 반드시 단순 경로로 작성
+android/

@@ -1,0 +1,16 @@
+packages:
+  "framer-motion": "For smooth page transitions and beautiful micro-interactions"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge Tailwind CSS classes without style conflicts"
+  "date-fns": "For formatting and calculating dates and times beautifully"
+  "@radix-ui/react-slot": "For component composition"
+
+images:
+  - path: "artifacts/digital-detox/public/images/challenge-hero.png"
+    description: "Abstract 3D glassmorphism shapes in soft indigo and peach, representing focus and achievement, soft lighting, clean premium aesthetic"
+    aspect_ratio: "16:9"
+
+notes:
+  - Using @workspace/api-client-react for TanStack Query hooks generated from OpenAPI spec
+  - Application uses a mobile-first app layout centered on larger screens
+  - "Settings Window" (Sunday edit lock) logic implemented via /api/server-time

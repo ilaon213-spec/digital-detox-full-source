@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/detox-mobile/"
+title = "디지털 디톡스 모바일"
+version = "1.0.0"
+id = "artifacts/detox-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+localPort = 21251
+name = "expo"
+paths = ["/detox-mobile/"]
+
+[services.development]
+run = "pnpm --filter @workspace/detox-mobile run dev"
+
+[services.env]
+PORT = "21251"
+BASE_PATH = "/detox-mobile/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/detox-mobile", "run", "build"]
+run = ["pnpm", "--filter", "@workspace/detox-mobile", "run", "serve"]

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "1546a15b-2e65-4097-b048-c47d5e7f0b6e"
+      }
+    },
+    "android": {
+      "package": "com.ilaon.workspace"
+    }
+  }
+}
